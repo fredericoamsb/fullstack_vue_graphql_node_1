@@ -6,17 +6,19 @@
           <div class="col-md">
             <AppItemList
               title="Prefixos"
-              v-bind:items="prefixes"
-              v-on:addItem="addPrefix"
-              v-on:deleteItem="deletePrefix"
+              type="prefix"
+              v-bind:items="items.prefix"
+              v-on:addItem="addItem"
+              v-on:deleteItem="deleteItem"
             ></AppItemList>
           </div>
           <div class="col-md">
             <AppItemList
               title="Sufixos"
-              v-bind:items="sufixes"
-              v-on:addItem="addSufix"
-              v-on:deleteItem="deleteSufix"
+              type="suffix"
+              v-bind:items="items.suffix"
+              v-on:addItem="addItem"
+              v-on:deleteItem="deleteItem"
             ></AppItemList>
           </div>
         </div>
@@ -58,30 +60,111 @@ export default {
   },
   data: () => {
     return {
-      prefixes: [],
-      sufixes: []
+      items: {
+        prefix: [],
+        suffix: []
+      }
     };
   },
   methods: {
-    addPrefix(prefix) {
-      this.prefixes.push(prefix);
+    addItem(item) {
+      const url = "http://localhost:4000";
+
+      const data = {
+        query: `
+            mutation ($item: ItemInput) {
+              newItem: saveItem(item: $item) {
+                id
+                type
+                description
+              }
+            }
+        `,
+        variables: {
+          item
+        }
+      };
+
+      const requestInfo = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      };
+
+      fetch(url, requestInfo).then(response => {
+        response.json().then(json => {
+          const newItem = json.data.newItem;
+          this.items[item.type].push(newItem);
+        });
+      });
     },
-    deletePrefix(prefix) {
-      this.prefixes.splice(this.prefixes.indexOf(prefix), 1);
+    deleteItem(item) {
+      const url = "http://localhost:4000";
+
+      const data = {
+        query: `
+            mutation ($id: Int) {
+              deleted: deleteItem(id: $id)
+            }
+        `,
+        variables: {
+          id: item.id
+        }
+      };
+
+      const requestInfo = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      };
+
+      fetch(url, requestInfo).then(() => {
+        this.getItems(item.type);
+      });
     },
-    addSufix(sufix) {
-      this.sufixes.push(sufix);
-    },
-    deleteSufix(sufix) {
-      this.sufixes.splice(this.sufixes.indexOf(sufix), 1);
+    getItems(type) {
+      const url = "http://localhost:4000";
+
+      const data = {
+        query: `      
+          query ($type: String) {
+            items: items (type: $type) {
+              id
+              type
+              description
+            }
+          }
+      `,
+        variables: {
+          type
+        }
+      };
+
+      const requestInfo = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      };
+
+      fetch(url, requestInfo).then(response => {
+        response.json().then(json => {
+          this.items[type] = json.data.items;
+        });
+      });
     }
   },
   computed: {
     domains() {
       const domains = [];
-      for (const prefix of this.prefixes) {
-        for (const sufix of this.sufixes) {
-          const name = prefix + sufix;
+      for (const prefix of this.items.prefix) {
+        for (const suffix of this.items.suffix) {
+          const name = prefix.description + suffix.description;
           const url = name.toLowerCase();
           const checkout = `https://checkout.hostgator.com.br/?a=add&sld=${url}&tld=.com.br`;
           domains.push({
@@ -94,37 +177,8 @@ export default {
     }
   },
   created() {
-    const url = "http://localhost:4000";
-
-    const data = {
-      query: `      
-          {
-            prefixes: items (type: "prefix") {
-              id
-              type
-              description
-            }
-            sufixes: items (type: "sufix") {
-              description
-            }
-          }
-      `
-    };
-
-    const requestInfo = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(data)
-    };
-
-    fetch(url, requestInfo).then(response => {
-      response.json().then(json => {
-        this.prefixes = json.data.prefixes.map(prefix => prefix.description);
-        this.sufixes = json.data.sufixes.map(sufix => sufix.description);
-      });
-    });
+    this.getItems("prefix");
+    this.getItems("suffix");
   }
 };
 </script>
