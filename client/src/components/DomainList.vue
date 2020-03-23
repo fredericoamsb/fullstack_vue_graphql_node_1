@@ -58,8 +58,8 @@ export default {
   },
   data: () => {
     return {
-      prefixes: ["Air", "Jet", "Flight"],
-      sufixes: ["Hub", "Station", "Mart"]
+      prefixes: [],
+      sufixes: []
     };
   },
   methods: {
@@ -92,6 +92,39 @@ export default {
       }
       return domains;
     }
+  },
+  created() {
+    const url = "http://localhost:4000";
+
+    const data = {
+      query: `      
+          {
+            prefixes: items (type: "prefix") {
+              id
+              type
+              description
+            }
+            sufixes: items (type: "sufix") {
+              description
+            }
+          }
+      `
+    };
+
+    const requestInfo = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
+    };
+
+    fetch(url, requestInfo).then(response => {
+      response.json().then(json => {
+        this.prefixes = json.data.prefixes.map(prefix => prefix.description);
+        this.sufixes = json.data.sufixes.map(sufix => sufix.description);
+      });
+    });
   }
 };
 </script>
