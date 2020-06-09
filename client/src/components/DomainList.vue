@@ -32,11 +32,23 @@
             <ul class="list-group">
               <li class="list-group-item" v-for="domain in domains" v-bind:key="domain.name">
                 <div class="row">
-                  <div class="col-md">{{domain.name}}</div>
-                  <div class="col-md text-right">
+                  <div class="col-md-6">{{domain.name}}</div>
+                  <div class="col-md-3">
+                    <div
+                      class="badge badge-info"
+                    >{{domain.available ? 'Disponível': 'Não Disponível'}}</div>
+                  </div>
+                  <div class="col-md-3 text-right">
                     <a v-bind:href="domain.checkout" target="_blank" class="btn btn-info">
                       <span class="fa fa-shopping-cart"></span>
                     </a>
+                    &nbsp;
+                    <button
+                      class="btn btn-info"
+                      @click="openDomain(domain)"
+                    >
+                      <span class="fa fa-search"></span>
+                    </button>
                   </div>
                 </div>
               </li>
@@ -52,6 +64,7 @@
 import "bootstrap/dist/css/bootstrap.css";
 import "font-awesome/css/font-awesome.css";
 import AppItemList from "./AppItemList";
+import axios from "axios";
 
 export default {
   name: "app",
@@ -63,15 +76,17 @@ export default {
       items: {
         prefix: [],
         suffix: []
-      }
+      },
+      domains: []
     };
   },
   methods: {
     addItem(item) {
-      const url = "http://localhost:4000";
-
-      const data = {
-        query: `
+      axios({
+        url: "http://localhost:4000",
+        method: "POST",
+        data: {
+          query: `
             mutation ($item: ItemInput) {
               newItem: saveItem(item: $item) {
                 id
@@ -79,106 +94,90 @@ export default {
                 description
               }
             }
-        `,
-        variables: {
-          item
+          `,
+          variables: {
+            item
+          }
         }
-      };
-
-      const requestInfo = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data)
-      };
-
-      fetch(url, requestInfo).then(response => {
-        response.json().then(json => {
-          const newItem = json.data.newItem;
-          this.items[item.type].push(newItem);
-        });
+      }).then(response => {
+        const query = response.data;
+        const newItem = query.data.newItem;
+        this.items[item.type].push(newItem);
+        this.generateDomains();
       });
     },
     deleteItem(item) {
-      const url = "http://localhost:4000";
-
-      const data = {
-        query: `
+      axios({
+        url: "http://localhost:4000",
+        method: "POST",
+        data: {
+          query: `
             mutation ($id: Int) {
               deleted: deleteItem(id: $id)
             }
-        `,
-        variables: {
-          id: item.id
+          `,
+          variables: {
+            id: item.id
+          }
         }
-      };
-
-      const requestInfo = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data)
-      };
-
-      fetch(url, requestInfo).then(() => {
-        this.getItems(item.type);
+      }).then(() => {
+        this.items[item.type].splice(this.items[item.type].indexOf(item), 1);
+        this.generateDomains();
       });
     },
     getItems(type) {
-      const url = "http://localhost:4000";
-
-      const data = {
-        query: `      
-          query ($type: String) {
-            items: items (type: $type) {
-              id
-              type
-              description
-            }
-          }
-      `,
-        variables: {
-          type
-        }
-      };
-
-      const requestInfo = {
+      return axios({
+        url: "http://localhost:4000",
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data)
-      };
-
-      fetch(url, requestInfo).then(response => {
-        response.json().then(json => {
-          this.items[type] = json.data.items;
-        });
+        data: {
+          query: `      
+            query ($type: String) {
+              items: items (type: $type) {
+                id
+                type
+                description
+              }
+            }
+          `,
+          variables: {
+            type
+          }
+        }
+      }).then(response => {
+        const query = response.data;
+        this.items[type] = query.data.items;
+      });
+    },
+    generateDomains() {
+      axios({
+        url: "http://localhost:4000",
+        method: "POST",
+        data: {
+          query: `      
+            mutation {
+              domains: generateDomains {
+                name
+                checkout,
+                available
+              }
+            }
+          `
+        }
+      }).then(response => {
+        const query = response.data;
+        this.domains = query.data.domains;
+      });
+    },
+    openDomain(domain) {
+      this.$router.push({
+        path: `/domains/${domain.name}`
       });
     }
   },
-  computed: {
-    domains() {
-      const domains = [];
-      for (const prefix of this.items.prefix) {
-        for (const suffix of this.items.suffix) {
-          const name = prefix.description + suffix.description;
-          const url = name.toLowerCase();
-          const checkout = `https://checkout.hostgator.com.br/?a=add&sld=${url}&tld=.com.br`;
-          domains.push({
-            name,
-            checkout
-          });
-        }
-      }
-      return domains;
-    }
-  },
   created() {
-    this.getItems("prefix");
-    this.getItems("suffix");
+    Promise.all([this.getItems("prefix"), this.getItems("suffix")]).then(() => {
+      this.generateDomains();
+    });
   }
 };
 </script>
