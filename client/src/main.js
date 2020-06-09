@@ -132,7 +132,7 @@ const store = new Vuex.Store({
 
 Promise.all([
   store.dispatch("getItems", "prefix"),
-  store.dispatch("getItems", "prefix")
+  store.dispatch("getItems", "suffix")
 ]).then(() => {
   store.dispatch("generateDomains");
 });
