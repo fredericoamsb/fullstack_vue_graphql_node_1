@@ -35,8 +35,12 @@ const typeDefs = `
 `;
 
 const items = [
-    { id: 1, type: "suffix", description: "presu" },
-    { id: 2, type: "prefix", description: "fix" }
+    { id: 1, type: "prefix", description: "Air" },
+    { id: 2, type: "prefix", description: "Jet" },
+    { id: 3, type: "prefix", description: "Flight" },
+    { id: 4, type: "suffix", description: "Hub" },
+    { id: 5, type: "suffix", description: "Station" },
+    { id: 6, type: "suffix", description: "Mart" }
 ];
 
 const isDomainAvailable = function (url) {
